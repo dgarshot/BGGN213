@@ -1,0 +1,202 @@
+---
+title: "Class09_Unsupervised_Learning_Analysis"
+author: "Danielle Garshott"
+date: "2/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exploratory data analysis
+
+```{r}
+# Get our input data
+
+wisc.df <- read.csv("wisconsincancer.csv")
+```
+
+```{r}
+head(wisc.df)
+```
+
+Look like there is a funny last col "X". Lets check how many samples (i.e. patients) and features (i.e. cols) are in this data.
+```{r}
+# number of patients
+nrow(wisc.df)
+# number of columns
+ncol(wisc.df)
+```
+
+Lets take col 3 to 32 for further anaylsis (i.e. drop the funny "X" and the diagnosis cols)
+```{r}
+wisc.data <- wisc.df[, 3:32]
+head(wisc.data)
+
+```
+
+Add patient ID as row names of our data.
+```{r}
+rownames(wisc.data) <- wisc.data$id
+head(wisc.data)
+
+```
+
+```{r}
+wisc.data <- wisc.df[, 3:32]
+head(wisc.data)
+```
+
+Q. How many cancer
+```{r}
+table(wisc.df$diagnosis)
+```
+
+Q. How many features are "_mean" values? 
+```{r}
+# colnames(wisc.data)
+length(grep("_mean", colnames(wisc.data)))
+```
+
+
+```{r}
+inds <- grep("_mean", colnames(wisc.data))
+colnames(wisc.data)[inds]
+```
+
+
+## Perform Principal Component Analysis (PCA) on wisc.data
+
+```{r}
+# Check column means and standard deviations
+round(apply(wisc.data, 2, mean), 2)
+```
+
+```{r}
+round(apply(wisc.data, 2, sd), 2)
+```
+
+We need scalling!!!
+
+## Principal Component Analysis (PCA)
+```{r}
+# Perform PCA on wisc.data by completing the following code
+wisc.pr <- prcomp(wisc.data, scale = TRUE)
+summary(wisc.pr)
+```
+
+
+
+```{r}
+# This is a HOT MESS!!!
+biplot(wisc.pr)
+```
+
+
+That is a useless plot!
+
+We need to make our own plot of our PCA results
+
+```{r}
+plot(wisc.pr$x[,1],wisc.pr$x[,2] )
+```
+
+Lets use the expert diagnosis to color our plot
+
+```{r}
+wisc.df$diagnosis
+```
+
+```{r}
+#wisc.df$diagnosis
+# each dot represents a patient from our original dataset 
+plot(wisc.pr$x[,1],wisc.pr$x[,2], col=wisc.df$diagnosis )
+```
+
+
+
+### Make a screen-plot for our PCA results. 
+
+This plot will show the proportion of variance captures in each PC. 
+
+```{r}
+variance <- wisc.pr$sdev^2
+#proportion of PC 
+pve <- round(variance/sum(variance)* 100, 2)
+pve
+
+```
+
+
+```{r}
+barplot(pve, ylab = "Precent of Variance Explained",
+     names.arg=paste("PC",1:length(pve)), las=2, axes = FALSE)
+#axis (#2 indicates the side of the plot the axis)
+axis(2, at=pve, labels=round(pve,2)*100 )
+```
+
+```{r}
+barplot(pve, axes=FALSE, names.arg=paste("PC", 1:length(pve), sep=""), las=2, ylab="Percent of Variance Explained")
+axis(2, round(pve))
+```
+
+## Clustering on our PCA results
+
+For hclust we need a distance matrix and we get this from our PCA results (i.e. wisc.pr$x)
+
+1. Need a DIST (distance) matrix
+2. Heirarchial clusting is done with hclust 
+3. Plot to make a cluster dendrogram 
+```{r}
+d <- dist(wisc.pr$x[,1:2])
+# Ward's method used for multidimensional variance like PCA
+wisc.pr.hclust <- hclust(d, method = "ward.D2")
+plot(wisc.pr.hclust)
+
+```
+
+Let's cluster our tree into 3 groups (i.e. clusters!!)
+```{r}
+# K is the desired numbr of groups
+grp3 <- cutree(wisc.pr.hclust, k=3)
+table(grp3)
+```
+
+
+Plot our PCA plot colored only by clusters
+```{r}
+# col=grps is color by groups established in the above argument 
+plot(wisc.pr$x[,1], wisc.pr$x[,2], xlab="PC1", ylab="PC2", col=grp3)
+```
+
+
+Cross tabulation 
+```{r}
+#table(grp3, )
+#diagnosis
+diagnosis <- wisc.df$diagnosis == "M"
+
+table(grp3, diagnosis)
+```
+
+## Predictions
+Take new data from UofM and predict if the two patients 
+```{r}
+new <- read.csv("new_samples.csv")
+npc <- predict(wisc.pr, newdata=new)
+npc
+```
+
+
+```{r}
+plot(wisc.pr$x[,1:2], col=grp3)
+points(npc[,1], npc[,2], col=c("orange","blue"), pch=15, cex=2)
+```
+
+
+
+
+
+
+

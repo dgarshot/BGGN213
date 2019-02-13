@@ -1,0 +1,113 @@
+---
+title: "Class 7 functions and packages"
+author: "Danielle Garshott"
+date: "1/30/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Functions revisited 
+
+Load(i.e. **source) our rescale() function from last day.
+
+```{r}
+source("http://tinyurl.com/rescale-R")
+```
+
+Test this function
+
+```{r}
+rescale(1:5)
+```
+
+```{r}
+rescale(c(1:5, "string"))
+```
+
+We want to make this function more robust to these types of errors
+
+```{r}
+rescale2(c(1:5, "string"))
+```
+
+```{r}
+is.numeric(1:5)
+```
+
+```{r}
+!is.numeric(c(1:5, "string"))
+```
+
+
+```{r}
+x <- c( 1, 2, NA, 3, NA)
+y <- c(NA, 3, NA, 3, 4)
+```
+
+
+```{r}
+is.na(x)
+is.na(y)
+```
+
+```{r}
+is.na(x) & is.na(y)
+```
+
+```{r}
+sum(is.na(x) & is.na(y))
+# which(is.na(x) & is.na(y)) 
+```
+
+Now take our working snippet and make a first function
+
+```{r}
+both_na <- function(x,y) {
+  # Checl for NA elements in both input vectors
+  sum(is.na(x) & is.na(y))
+}
+```
+
+```{r}
+both_na(x,y)
+```
+
+
+```{r}
+x <- c(NA, NA, NA)
+y1 <- c( 1, NA, NA)
+y2 <- c( 1, NA, NA, NA)
+```
+
+```{r}
+both_na(x,y2)
+```
+
+
+```{r}
+x <- c( 1, 2, NA, 3, NA)
+y <- c(NA, 3, NA, 3, 4)
+```
+
+
+```{r}
+both_na3(x,y)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

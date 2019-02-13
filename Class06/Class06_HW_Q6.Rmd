@@ -1,0 +1,36 @@
+---
+title: "Class06_HW_Q6"
+author: "Danielle Garshott"
+date: "2/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 6
+
+# New and improved analysis code!
+
+```{r}
+library(bio3d)
+# Read a protein PDB file from the RCSB online database
+protein <- function(x) {
+  # protein stuc pdb read into
+  p_ID <- read.pdb(x) 
+  # Trim PDB to specific chain and atom type
+  protein_trim <- trim.pdb(p_ID, chain="A", elety="CA")
+  # Select column b from row **atom** in data.frame
+  p_atom <- protein_trim$atom$b
+  plotb3(p_atom, sse=p_atom, typ="l", ylab="Bfactor")
+}
+protein("4AKE")
+protein("1AKE")
+protein("1E4Y")
+
+# Output is a plot of protein B-factor (displacement of the atomic position from an average value) at a given residue within the protein structure. 
+```
+
+
+
