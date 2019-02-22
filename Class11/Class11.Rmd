@@ -1,0 +1,74 @@
+---
+title: "Untitled"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## GitHub Documents
+
+Section 3
+
+```{r}
+library(bio3d)
+pdb <- read.pdb("1hsg")
+print(pdb)
+```
+
+```{r}
+PDB <- read.pdb("1hsg")
+inds <- atom.select(PDB, "ligand")
+inds
+```
+
+```{r}
+pdb$atom[inds$atom,]
+```
+
+```{r}
+ligand.pdb <- trim.pdb(pdb, inds)
+ligand.pdb
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+pdb$atom
+```
+
+
+```{r}
+pdb$atom$resid
+
+```
+
+```{r}
+pdb$atom[,head(1:5)]
+```
+
+
+```{r}
+inds.protein <- atom.select(pdb, "protein")
+inds.protein
+```
+
+
+```{r}
+pdb <- read.pdb("1HEL")
+
+# Normal Mode Analysis (predicts how flexible different parts of the molecule are)
+modes <- nma(pdb)
+plot(modes)
+```
+
+```{r}
+m7 <- mktrj(modes, mode=7, file="mode_7.pdb")
+view(m7)
+```
+
