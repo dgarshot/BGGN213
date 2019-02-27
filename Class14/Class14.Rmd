@@ -1,0 +1,328 @@
+---
+title: "Class 14: Transcriptomics and the analysis of RNA-Seq data"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data Input
+
+```{r}
+counts <- read.csv("data/airway_scaledcounts.csv", stringsAsFactors = FALSE)
+metadata <-  read.csv("data/airway_metadata.csv", stringsAsFactors = FALSE)
+```
+
+```{r}
+head(counts)
+```
+
+```{r}
+head(metadata)
+```
+
+```{r}
+View(metadata)
+```
+
+How many genes are there in the data set?
+```{r}
+nrow(counts)
+```
+
+How many experiements?
+```{r}
+ncol(counts)
+```
+
+Let's check for metadat to counts correspondence
+```{r}
+metadata$id
+# [-1] will give you everything but the first column.
+colnames(counts)[-1]
+#all function will tell you if they are all TRUE. If even one is not TRUE, it will return FALSE.
+all(metadata$id == colnames(counts)[-1])
+```
+
+Let's extract all the rows that are "control" experiements (i.e. columns of our **counts** object based on the **metadata**)
+
+```{r}
+#Find the column names (ids) of the 'control' experiements
+control.ids <- metadata$id[metadata[,"dex"]=="control"]
+control.ids
+
+# Use the ids to extract the control count columns 
+control <- counts[,control.ids]
+rownames(control) <- counts$ensgene
+head(control)
+```
+
+Let's extract all the rows that are "treated" experiements (i.e. columns of our **counts** object based on the **metadata**)
+```{r}
+#Find the column names (ids) of the 'control' experiements
+treated.ids <- metadata$id[metadata[,"dex"]=="treated"]
+treated.ids
+
+# Use the ids to extract the control count columns 
+treated <- counts[,treated.ids]
+rownames(treated) <- counts$ensgene
+head(treated)
+```
+
+
+Find the mean counts value for each gene in control exps
+
+```{r}
+#rowMeans(control)
+# or you could use 
+control.mean <- rowSums(control)/ncol(control)
+head(control.mean)
+```
+
+
+```{r}
+treated.mean <- rowMeans(treated)
+head(treated.mean)
+```
+
+Combine these two into a new dataframe for easy use later
+```{r}
+meanscounts <- data.frame(control.mean, treated.mean)
+meanscounts
+```
+
+```{r}
+colSums(meanscounts)
+```
+
+Plot treated vs control
+
+```{r}
+plot(meanscounts$control.mean,treated.mean)
+```
+
+Make a log-log plot 
+
+```{r}
+plot(meanscounts$control.mean,treated.mean, log="xy", xlab= "log Control", ylab= "log Treated")
+```
+
+Calculate the log2 Fold change
+
+We can find candidate differentially expressed genes by looking for genes with a large change between control and dex-treated samples. We usually look at the log2 of the fold change, because this has better mathematical properties.
+
+Here we calculate log2foldchange, add it to our meancounts data.frame and inspect the results either with the head() or the View() function for example.
+
+```{r}
+meanscounts$log2fc <- log2(meanscounts[,"treated.mean"]/meanscounts[,"control.mean"])
+head(meanscounts)
+```
+
+There are a couple of “weird” results. Namely, the NaN (“not a number”“) and -Inf (negative infinity) results.
+
+The NaN is returned when you divide by zero and try to take the log. The -Inf is returned when you try to take the log of zero. It turns out that there are a lot of genes with zero expression. Let’s filter our data to remove these genes. Again inspect your result (and the intermediate steps) to see if things make sense to you
+
+```{r}
+#meanscounts[,1:2] == 0
+## EXAMPLE
+toy <- c(1,2,0,4,0)
+which(toy == 0)
+
+newtoy <- cbind(toy,toy)
+newtoy
+newtoy == 0
+which(newtoy== 0, arr.ind = TRUE)
+unique(which(newtoy== 0, arr.ind = TRUE)[,1])
+```
+
+```{r}
+zero.vals <- which(meanscounts[,1:2]==0, arr.ind=TRUE)
+head(zero.vals)
+
+# "1"
+to.rm <- unique(zero.vals[,1])
+mycounts <- meanscounts[-to.rm,]
+head(mycounts)
+```
+
+
+A common threshold used for calling something differentially expressed is a log2(FoldChange) of greater than 2 or less than -2. Let’s filter the dataset both ways to see how many genes are up or down-regulated.
+
+```{r}
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+sum(up.ind)
+sum(down.ind)
+```
+
+```{r}
+head(mycounts[up.ind,])
+```
+
+## Add annotation data from ENSEMBLE database
+
+```{r}
+anno <- read.csv("data/annotables_grch38.csv")
+head(anno)
+```
+
+```{r}
+#dim function
+dim(anno)
+```
+
+Let's try-out the **merge()** function to add the annotation data to our **meancounts** results 
+```{r}
+mycounts.anno <- merge(x=mycounts, y=anno, by.x="row.names", by.y="ensgene")
+head(mycounts.anno)
+```
+
+
+In cases where you don’t have a preferred annotation file at hand you can use other Bioconductor packages for annotation.
+
+Bioconductor’s annotation packages help with mapping various ID schemes to each other. Here we load the AnnotationDbi package and the annotation package org.Hs.eg.db.
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+```{r}
+#This is the organism annotation package (“org”) for Homo sapiens (“Hs”), organized as an AnnotationDbi database package (“db”), using Entrez Gene IDs (“eg”) as primary key. To get a list of all available key types, use:
+columns(org.Hs.eg.db)
+```
+
+We can use the mapIds() function to add individual columns to our results table. We provide the row names of our results table as a key, and specify that  keytype=ENSEMBL. The column argument tells the mapIds() function which information we want, and the multiVals argument tells the function what to do if there are multiple possible values for a single input value. Here we ask to just give us back the first one that occurs in the database.
+
+```{r}
+mycounts$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="SYMBOL",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+```
+
+```{r}
+mycounts$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="ENTREZID",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+```
+
+```{r}
+mycounts$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(mycounts),
+                     column="UNIPROT",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+```
+
+```{r}
+head(mycounts)
+```
+
+```{r}
+anno.up.ind <- mycounts$log2fc > 2
+anno.down.ind <- mycounts$log2fc < (-2)
+sum(anno.up.ind)
+sum(anno.down.ind)
+```
+
+```{r}
+head(mycounts[anno.up.ind,])
+```
+
+
+## DESeq2 analysis
+
+```{r}
+library(DESeq2)
+```
+
+Build our DESeqDataSet: stores inputs and all our results (dds)
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex, 
+                              tidy=TRUE)
+dds
+```
+
+Run the DESeq analysis 
+
+```{r}
+dds <- DESeq(dds)
+```
+
+Get our results
+```{r}
+res <- results(dds)
+res
+```
+
+```{r}
+# alpha argument adjusted the p-value
+summary(res, alpha=0.01)
+```
+
+## Volcano plots
+```{r}
+res$sig <- res$padj<0.05 & abs(res$log2FoldChange)>2
+
+# How many of each?
+table(res$sig)
+```
+
+```{r}
+sum(is.na(res$sig))
+```
+
+A volcano plot shows the log fold change on the X-axis, and the −log10 of the p-value on the Y-axis (the more significant the p-value, the larger the −log10 of that value will be).
+
+```{r}
+plot(res$log2FoldChange, -log(res$padj))
+```
+
+```{r}
+mycol <- rep("gray", nrow(res))
+mycol[abs(res$log2FoldChange)>2]="red"
+subset.inds <- res$padj < 0.01 & abs(res$log2FoldChange) > 2
+mycol[subset.inds] = "blue"
+
+plot(res$log2FoldChange, -log(res$padj), col=mycol)
+```
+
+
+
+
+```{r}
+# Set the color palette for our plot
+palette( c("gray","blue") )
+
+plot( res$log2FoldChange,  -log(res$padj), 
+ col=res$sig+1, ylab="-Log(P-value)", xlab="Log2(FoldChange)")
+
+# Add some cut-off lines
+abline(v=c(-2,2), col="darkgray", lty=2)
+abline(h=-log(0.1), col="darkgray", lty=2)
+```
+
+```{r}
+# Setup our custom point color vector 
+mycols <- rep("gray", nrow(res))
+mycols[ abs(res$log2FoldChange) > 2 ]  <- "red" 
+
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+
+#Volcano plot with custom colors 
+plot( res$log2FoldChange,  -log(res$padj), 
+ col=mycols, ylab="-Log(P-value)", xlab="Log2(FoldChange)" )
+
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+```
+
+
