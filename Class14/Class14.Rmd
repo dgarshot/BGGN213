@@ -89,7 +89,7 @@ head(treated.mean)
 Combine these two into a new dataframe for easy use later
 ```{r}
 meanscounts <- data.frame(control.mean, treated.mean)
-meanscounts
+head(meanscounts)
 ```
 
 ```{r}
